@@ -4,7 +4,7 @@ data(iris)
 
 iterations <- 1000
 
-lda <- sample_do(Species~., iris, iterations = iterations)
+lda <- sample_do(iris, Species~., iterations = iterations)
 
 betas <- get_betas(lda)
 

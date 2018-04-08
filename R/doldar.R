@@ -14,9 +14,33 @@ new_simple_do_config <- function(iterations, tmpdir = "/tmp") {
   return(slc)
 }
 
+#' @export
+sample_do <- function (x, ...) {
+  UseMethod("sample_do", x)
+}
+
 #' @importFrom rJava .jnew .jcall
 #' @export
-sample_do <- function(formula, ds, iterations = 2000, samplerType="xyz.lejon.bayes.models.probit.HorseshoeDOProbitEJML") {
+sample_do.matrix <- function(ds, Y, iterations = 2000, samplerType="xyz.lejon.bayes.models.probit.HorseshoeDOProbitEJML") {
+  #.jconstructors(samplerType)
+  ldaconfig <- new_simple_do_config(iterations)
+  X <- ds
+  storage.mode(X) <- "double"
+  Y <- as.integer(Y)
+
+  lcfg <- .jcast(ldaconfig,"xyz.lejon.configuration.DOConfiguration")
+  ex <- tryCatch(lda <- .jnew(samplerType,lcfg,.jarray(X,dispatch = T),Y), NullPointerException = function(ex) ex)
+  #lda <- .jnew("cc.mallet.topics.SpaliasUncollapsedParallelLDA",.jcast(slc,"cc.mallet.configuration.LDAConfiguration"))
+  .jcall(lda,"V", "sample", as.integer(iterations))
+  betas  <- .jcall(lda,"[[D","getBetas",simplify = TRUE)
+  res <- list(lda_obj = lda, formula = formula, data = ds, betas=betas)
+  class(res) <- "diagonal_orthant"
+  return(res)
+}
+
+#' @importFrom rJava .jnew .jcall
+#' @export
+sample_do.data.frame <- function(ds, formula, iterations = 2000, samplerType="xyz.lejon.bayes.models.probit.HorseshoeDOProbitEJML") {
   #.jconstructors(samplerType)
   ldaconfig <- new_simple_do_config(iterations)
   Yname <- all.vars(formula)[1]
