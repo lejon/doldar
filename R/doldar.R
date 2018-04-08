@@ -28,12 +28,28 @@ sample_do <- function(formula, ds, iterations = 2000, samplerType="xyz.lejon.bay
   ex <- tryCatch(lda <- .jnew(samplerType,lcfg,.jarray(X,dispatch = T),Y), NullPointerException = function(ex) ex)
   #lda <- .jnew("cc.mallet.topics.SpaliasUncollapsedParallelLDA",.jcast(slc,"cc.mallet.configuration.LDAConfiguration"))
   .jcall(lda,"V", "sample", as.integer(iterations))
-  return(lda)
+  betas  <- .jcall(lda,"[[D","getBetas",simplify = TRUE)
+  res <- list(lda_obj = lda, formula = formula, data = ds, betas=betas)
+  class(res) <- "diagonal_orthant"
+  return(res)
 }
 
-#' @importFrom rJava .jcall
 #' @export
 get_betas <- function(lda) {
-  theta  <- .jcall(lda,"[[D","getBetas",simplify = TRUE)
-  return(theta)
+  return(lda$betas)
+}
+
+#' @export
+predict.diagonal_orthant <- function(model, newdata) {
+  stopifnot(inherits(model,"diagonal_orthant"))
+  eval <- .jnew("xyz.lejon.bayes.models.probit.DOEvaluation")
+  betas <- model$betas
+  #EvalResult result  = DOEvaluation.evaluateMaxA(testset, testLabels, betas, true);
+  res <- .jcall(eval,"Lxyz/lejon/eval/EvalResult;", "predict",
+                .jarray(newdata,dispatch = T),
+                .jarray(betas,dispatch = T))
+  predictions <- .jcall(res,"[I","getPredictedLabels")
+  fit <- list(preds=predictions)
+  class(fit) <- "diagonal_orthant.fit"
+  return(fit)
 }
